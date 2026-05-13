@@ -1,0 +1,12 @@
+{
+  "domain": "havant_waste",
+  "name": "Havant Borough Waste Collection",
+  "codeowners": ["@MrNorm"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/MrNorm/ha-vant-waste",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/MrNorm/ha-vant-waste/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

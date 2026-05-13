@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Havant Borough Waste",
+        "description": "Enter the credentials you use to sign in at waste.havant.gov.uk. They are stored encrypted in Home Assistant and never leave this installation.",
+        "data": {
+          "username": "Email address",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Incorrect email or password.",
+      "cannot_connect": "Could not reach waste.havant.gov.uk.",
+      "unknown": "Unexpected error — see Home Assistant logs."
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_collection": {
+        "name": "Next collection"
+      }
+    }
+  }
+}

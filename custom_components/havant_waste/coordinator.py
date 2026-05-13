@@ -7,6 +7,7 @@ from datetime import date
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -47,7 +48,7 @@ class HavantWasteCoordinator(DataUpdateCoordinator[list[Collection]]):
         try:
             collections = await self._client.async_fetch_collections()
         except HavantWasteAuthError as err:
-            raise UpdateFailed(f"authentication failed: {err}") from err
+            raise ConfigEntryAuthFailed(str(err)) from err
         except HavantWasteError as err:
             raise UpdateFailed(str(err)) from err
 

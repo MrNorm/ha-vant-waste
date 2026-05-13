@@ -8,6 +8,13 @@
           "username": "Email address",
           "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Havant Waste",
+        "description": "The login for {username} no longer works. Enter your current password to keep the schedule updating.",
+        "data": {
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -16,7 +23,8 @@
       "unknown": "Unexpected error — see Home Assistant logs."
     },
     "abort": {
-      "already_configured": "This account is already configured."
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "Re-authentication succeeded."
     }
   },
   "entity": {

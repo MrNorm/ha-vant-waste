@@ -50,25 +50,102 @@ collection is today and not yet completed, send me a reminder."
 1. Copy `custom_components/havant_waste/` into your HA `config/custom_components/` directory.
 2. Restart HA, then add the integration from the UI as above.
 
-## Example automation
+## Examples
+
+### Lovelace card — next bin, emoji per type
+
+A markdown card that picks the emoji from the upcoming bin's `type`
+attribute and shows the council `status` on collection day.
+
+```yaml
+type: markdown
+title: Next bin collection
+content: |
+  {% set s = 'sensor.havant_waste_collection_next_collection' %}
+  {% set t = state_attr(s, 'type') %}
+  {% set st = state_attr(s, 'status') %}
+  {% set d = state_attr(s, 'days_until') %}
+  {% set icons = {
+       'Residual 240L': '🗑️',
+       'Recycling 240L': '♻️',
+       'Garden 240L': '🌿',
+       'Food caddy 23L': '🥕',
+     } %}
+  {% set icon = icons.get(t, '🗑️') %}
+  {% if state_attr(s, 'is_today') %}
+  ## {{ icon }} {{ t }} — **today**
+  Status: **{{ st }}**
+  {% elif d == 1 %}
+  ## {{ icon }} {{ t }} — **tomorrow**
+  ({{ states(s) }})
+  {% else %}
+  ## {{ icon }} {{ t }}
+  {{ states(s) }} · in {{ d }} days
+  {% endif %}
+```
+
+### Automation — remind me the night before
+
+Fires once per evening; the `days_until` check makes sure it's silent
+on non-bin nights.
 
 ```yaml
 automation:
-  - alias: "Bin day reminder"
+  - alias: "Bin reminder — night before"
     triggers:
       - trigger: time
-        at: "19:00:00"
+        at: "20:00:00"
     conditions:
       - condition: template
-        value_template: "{{ state_attr('sensor.havant_waste_collection_next_collection', 'days_until') == 1 }}"
+        value_template: >
+          {{ state_attr('sensor.havant_waste_collection_next_collection',
+                         'days_until') == 1 }}
     actions:
-      - action: notify.mobile_app
+      - action: notify.mobile_app_your_phone
         data:
-          title: "Bins out tomorrow"
+          title: "Bins out tomorrow 🚮"
           message: >
-            {{ state_attr('sensor.havant_waste_collection_next_collection', 'type') }}
-            ({{ states('sensor.havant_waste_collection_next_collection') }})
+            {{ state_attr('sensor.havant_waste_collection_next_collection',
+                           'type') }}
+            collection in the morning.
 ```
+
+### Automation — notify on status change during bin day
+
+The integration polls every 30 minutes on bin day, so the council's
+`Status` attribute (e.g. `Not Started` → `In Progress` → `Closed-Complete`)
+flips on the sensor as the truck progresses. This automation fires
+only while today is the collection day, and skips the trivial
+`Not Started` baseline so you don't get an alert at midnight.
+
+```yaml
+automation:
+  - alias: "Bin status changed today"
+    triggers:
+      - trigger: state
+        entity_id: sensor.havant_waste_collection_next_collection
+        attribute: status
+    conditions:
+      - condition: template
+        value_template: >
+          {% set s = 'sensor.havant_waste_collection_next_collection' %}
+          {{ state_attr(s, 'is_today')
+             and state_attr(s, 'status') not in ['Not Started', None] }}
+    actions:
+      - action: notify.mobile_app_your_phone
+        data:
+          title: >
+            {{ state_attr('sensor.havant_waste_collection_next_collection',
+                           'type') }}
+          message: >
+            Status is now
+            {{ state_attr('sensor.havant_waste_collection_next_collection',
+                           'status') }}.
+```
+
+Tip: replace `notify.mobile_app_your_phone` with whatever notify
+service you use — `notify.persistent_notification`, a Telegram bot,
+a TTS speaker, etc.
 
 ## Development
 

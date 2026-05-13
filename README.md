@@ -52,42 +52,51 @@ collection is today and not yet completed, send me a reminder."
 
 ## Examples
 
-### Lovelace card — next bin, emoji per type
+All examples handle the **multi-bin day** case (e.g. Food caddy and
+Residual on the same morning). The `next_collection` sensor exposes a
+`next_date_collections` attribute — every bin sharing the next
+collection date, each with its own `status` — so you never lose a bin
+to "first one wins". For per-bin status changes the per-type sensors
+(`sensor.havant_waste_collection_next_*`) each track their own bin
+independently.
 
-A markdown card that picks the emoji from the upcoming bin's `type`
-attribute and shows the council `status` on collection day.
+### Lovelace card — next bin(s), emoji per type
 
 ```yaml
 type: markdown
 title: Next bin collection
 content: |
   {% set s = 'sensor.havant_waste_collection_next_collection' %}
-  {% set t = state_attr(s, 'type') %}
-  {% set st = state_attr(s, 'status') %}
+  {% set bins = state_attr(s, 'next_date_collections') or [] %}
   {% set d = state_attr(s, 'days_until') %}
+  {% set when = states(s) %}
   {% set icons = {
        'Residual 240L': '🗑️',
        'Recycling 240L': '♻️',
        'Garden 240L': '🌿',
        'Food caddy 23L': '🥕',
      } %}
-  {% set icon = icons.get(t, '🗑️') %}
   {% if state_attr(s, 'is_today') %}
-  ## {{ icon }} {{ t }} — **today**
-  Status: **{{ st }}**
+  ### Today's bins ({{ when }})
   {% elif d == 1 %}
-  ## {{ icon }} {{ t }} — **tomorrow**
-  ({{ states(s) }})
+  ### Tomorrow ({{ when }})
   {% else %}
-  ## {{ icon }} {{ t }}
-  {{ states(s) }} · in {{ d }} days
+  ### In {{ d }} days ({{ when }})
   {% endif %}
+  {% for b in bins %}
+  - {{ icons.get(b.type, '🗑️') }} **{{ b.type }}**{% if state_attr(s, 'is_today') %} — {{ b.status }}{% endif %}
+  {% endfor %}
 ```
+
+On 2026-05-15 with two bins it would render:
+
+> ### Tomorrow (2026-05-15)
+> - 🥕 **Food caddy 23L**
+> - 🗑️ **Residual 240L**
 
 ### Automation — remind me the night before
 
-Fires once per evening; the `days_until` check makes sure it's silent
-on non-bin nights.
+Lists every bin going out, not just the first one.
 
 ```yaml
 automation:
@@ -106,42 +115,47 @@ automation:
           title: "Bins out tomorrow 🚮"
           message: >
             {{ state_attr('sensor.havant_waste_collection_next_collection',
-                           'type') }}
+                           'next_date_types') | join(', ') }}
             collection in the morning.
 ```
 
 ### Automation — notify on status change during bin day
 
-The integration polls every 30 minutes on bin day, so the council's
-`Status` attribute (e.g. `Not Started` → `In Progress` → `Closed-Complete`)
-flips on the sensor as the truck progresses. This automation fires
-only while today is the collection day, and skips the trivial
-`Not Started` baseline so you don't get an alert at midnight.
+Each per-type sensor carries its own `status` attribute, so we watch
+them directly. The trigger fires per-bin, the `trigger.entity_id`
+template tells the notification which bin changed, and the condition
+filters out the trivial `Not Started` baseline so you don't get a
+spurious alert at midnight or when a future date rolls onto the
+sensor.
 
 ```yaml
 automation:
   - alias: "Bin status changed today"
     triggers:
       - trigger: state
-        entity_id: sensor.havant_waste_collection_next_collection
+        entity_id:
+          - sensor.havant_waste_collection_next_residual_240l
+          - sensor.havant_waste_collection_next_recycling_240l
+          - sensor.havant_waste_collection_next_garden_240l
+          - sensor.havant_waste_collection_next_food_caddy_23l
         attribute: status
     conditions:
       - condition: template
         value_template: >
-          {% set s = 'sensor.havant_waste_collection_next_collection' %}
-          {{ state_attr(s, 'is_today')
-             and state_attr(s, 'status') not in ['Not Started', None] }}
+          {{ state_attr(trigger.entity_id, 'is_today')
+             and state_attr(trigger.entity_id, 'status')
+                 not in ['Not Started', None] }}
     actions:
       - action: notify.mobile_app_your_phone
         data:
-          title: >
-            {{ state_attr('sensor.havant_waste_collection_next_collection',
-                           'type') }}
+          title: "{{ state_attr(trigger.entity_id, 'type') }}"
           message: >
-            Status is now
-            {{ state_attr('sensor.havant_waste_collection_next_collection',
-                           'status') }}.
+            Status is now {{ state_attr(trigger.entity_id, 'status') }}.
 ```
+
+If both bins go out on the same day, you'll get one notification per bin
+as the council updates each one — which is exactly what you want, since
+the truck may empty one and skip the other.
 
 Tip: replace `notify.mobile_app_your_phone` with whatever notify
 service you use — `notify.persistent_notification`, a Telegram bot,

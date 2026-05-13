@@ -112,6 +112,7 @@ class NextCollectionSensor(_BaseSensor):
             ],
         }
         if nxt is not None:
+            same_day = [c for c in upcoming if c.collection_date == nxt.collection_date]
             attrs.update(
                 {
                     "type": nxt.waste_type,
@@ -120,6 +121,16 @@ class NextCollectionSensor(_BaseSensor):
                     "days_until": (nxt.collection_date - today).days,
                     "is_today": nxt.collection_date == today,
                     "can_report_missed": nxt.can_report_missed,
+                    "next_date_types": [c.waste_type for c in same_day],
+                    "next_date_collections": [
+                        {
+                            "type": c.waste_type,
+                            "status": c.status,
+                            "description": c.description,
+                            "can_report_missed": c.can_report_missed,
+                        }
+                        for c in same_day
+                    ],
                 }
             )
         return attrs

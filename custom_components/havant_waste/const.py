@@ -9,6 +9,11 @@ BASE_URL = "https://waste.havant.gov.uk"
 LOGIN_PATH = "/Identity/Account/Login"
 
 DEFAULT_SCAN_INTERVAL = timedelta(hours=6)
+BIN_DAY_SCAN_INTERVAL = timedelta(minutes=30)
+
+# Council marks completed jobs with this Status string. Anything else on
+# a today-dated row means the bin has not yet been emptied.
+COMPLETED_STATUS = "Closed-Complete"
 
 ICON_MAP: dict[str, str] = {
     "Residual 240L": "mdi:trash-can",

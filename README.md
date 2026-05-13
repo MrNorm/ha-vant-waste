@@ -29,8 +29,10 @@ collection is today and not yet completed, send me a reminder."
 - Credentials are entered through Home Assistant's **config flow** UI.
 - They are stored in HA's encrypted `.storage`, **not in this repository
   or in any YAML file**.
-- The integration polls every 6 hours over HTTPS. No data leaves your HA
-  instance other than the login request itself.
+- The integration polls every 6 hours over HTTPS, dropping to 30 minutes
+  on bin day until every collection scheduled for today shows
+  `Closed-Complete`. No data leaves your HA instance other than the
+  login request itself.
 
 ## Installation
 

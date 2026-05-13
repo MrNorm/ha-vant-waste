@@ -16,7 +16,12 @@ from .api import (
     HavantWasteClient,
     HavantWasteError,
 )
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import (
+    BIN_DAY_SCAN_INTERVAL,
+    COMPLETED_STATUS,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,11 +45,30 @@ class HavantWasteCoordinator(DataUpdateCoordinator[list[Collection]]):
 
     async def _async_update_data(self) -> list[Collection]:
         try:
-            return await self._client.async_fetch_collections()
+            collections = await self._client.async_fetch_collections()
         except HavantWasteAuthError as err:
             raise UpdateFailed(f"authentication failed: {err}") from err
         except HavantWasteError as err:
             raise UpdateFailed(str(err)) from err
+
+        self._tune_interval(collections)
+        return collections
+
+    def _tune_interval(self, collections: list[Collection]) -> None:
+        """Speed up polling on bin day until every bin is marked complete."""
+        today = date.today()
+        bin_day_in_progress = any(
+            c.collection_date == today and c.status != COMPLETED_STATUS
+            for c in collections
+        )
+        target = BIN_DAY_SCAN_INTERVAL if bin_day_in_progress else DEFAULT_SCAN_INTERVAL
+        if self.update_interval != target:
+            _LOGGER.debug(
+                "Switching poll interval to %s (bin day in progress: %s)",
+                target,
+                bin_day_in_progress,
+            )
+            self.update_interval = target
 
     def upcoming(self) -> list[Collection]:
         today = date.today()
